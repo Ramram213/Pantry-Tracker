@@ -1,29 +1,97 @@
+'use client'
 import Image from "next/image";
 import { useState,useEffect } from "react";
 import { firestore, Firestore } from "@/firebase";
-import {Box, Typography} from "@mui/material";
-import { collection, doc, getDocs, query } from "firebase/firestore";
+import {Box, Modal, Stack, TextField, Typography} from "@mui/material";
+import { collection, deleteDoc, doc, getDocs, query, setDoc } from "firebase/firestore";
 
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [open, setOpen] = useState(false);
-  const[itemName, setItemName] = useState('')
+  const[itemName, setItemName] = useState('');
 
   const updateInventory = async () => {
-    const snapsot = query(collection(firestore, 'inventory'));
-    const docs = await getDocs(snapsot);
+    const snapshot = query(collection(firestore, 'inventory'));
+    const docs = await getDocs(snapshot);
     const inventoryList = [];
-    docs.forEach(doc) => {
+    docs.forEach((doc) => {
       inventoryList.push({
         name: doc.id,
-        doc.data()
-      })
+        ...doc.data(),
+      });
+    });
+    setInventory(inventoryList);
+  };
+  
+  const addItem = async (item) => {
+    const docRef = doc(collection(firestore, 'inventory'), item);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const { quantity } = docSnap.data();
+      await setDoc(docRef, { quantity: quantity + 1 });
+    } else {
+      await setDoc(docRef, { quantity: 1 });
     }
-    setInventory(inventoryList)
-  }
+
+    await updateInventory();
+  };
+
+  const removeItem = async (item) => {
+    const docRef = doc(collection(firestore, 'inventory'), item);
+    const docSnap = await getDoc(docRef);
+
+    if (docSnap.exists()) {
+      const { quantity } = docSnap.data();
+      if (quantity === 1) {
+        await deleteDoc(docRef);
+      } else {
+        await setDoc(docRef, { quantity: quantity - 1 });
+      }
+    }
+
+    await updateInventory();
+  };
+
+  useEffect(() => {
+    updateInventory();
+  }, []);
+
+  const handelOpen = () => setOpen(true);
+  const handelClose= () => setOpen(false);
+
   return (
-    <Box>
-      <Typography variant="h1"> Inventory </Typography>
+    <Box 
+      width="100vw"
+      height="100ch"
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      gap={2}
+    >
+      <Modal open={open} onClose={{handelClose}}>
+        <Box 
+          position="absolute" 
+          top="50%" 
+          left="50%"
+          transform="translate(-50%,-50%)"
+          width={400}
+          bgcolor="white"
+          border="2px solid #000"
+          boxShadow={24}
+          p={4}
+          display="flex"
+          flexDirection="column"
+          gap={3}
+        >
+          <Typography variant="h6">Add Item</Typography>
+          <Stack width="100%" direction="row" spacing={2}>
+            <TextField></TextField>
+          </Stack>
+        </Box>
+      </Modal>
+      <Typography variant="h1"> Inventory management </Typography>
+  
     </Box>
   )
-}
+};
